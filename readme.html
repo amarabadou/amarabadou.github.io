@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Ammar Abadou — Security Engineer</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0a0e0a;
+    --bg2:      #0d130d;
+    --panel:    #111811;
+    --border:   #1a2e1a;
+    --green:    #00ff41;
+    --green2:   #00cc33;
+    --green3:   #39ff14;
+    --dim:      #1a4a1a;
+    --text:     #c8ffc8;
+    --muted:    #4a7a4a;
+    --cyan:     #00ffcc;
+    --yellow:   #ffe066;
+    --red:      #ff4444;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,65,0.015) 2px,
+      rgba(0,255,65,0.015) 4px
+    );
+    pointer-events:none;
+    z-index:9999;
+  }
+
+  /* CRT vignette */
+  body::after {
+    content:'';
+    position:fixed; inset:0;
+    background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.7) 100%);
+    pointer-events:none;
+    z-index:9998;
+  }
+
+  /* Noise texture */
+  .noise {
+    position:fixed; inset:0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n (http://www.w3.org/2000/svg'%253E%253Cfilter%20id='n'%253E%253CfeTurbulence%20type='fractalNoise'%20baseFrequency='0.9'%20numOctaves='4'%20stitchTiles='stitch'/%253E%253C/filter%253E%253Crect%20width='100%2525'%20height='100%2525'%20filter='url(%2523n)))' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events:none;
+    z-index:9997;
+    opacity:0.4;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position:fixed; top:0; left:0; right:0;
+    background: rgba(10,14,10,0.95);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 32px;
+    display:flex; align-items:center; justify-content:space-between;
+    z-index:100;
+    backdrop-filter: blur(4px);
+  }
+
+  .nav-logo {
+    color: var(--green);
+    font-weight:700;
+    font-size:14px;
+    letter-spacing:2px;
+  }
+
+  .nav-logo span { color: var(--muted); }
+
+  nav ul {
+    list-style:none;
+    display:flex; gap:28px;
+  }
+
+  nav ul a {
+    color: var(--muted);
+    text-decoration:none;
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    transition: color 0.2s;
+  }
+
+  nav ul a:hover { color: var(--green); }
+
+  /* ── HERO ── */
+  #hero {
+    min-height:100vh;
+    display:flex; align-items:center; justify-content:center;
+    padding: 100px 32px 60px;
+    position:relative;
+  }
+
+  .hero-grid {
+    position:absolute; inset:0;
+    background-image:
+      linear-gradient(rgba(0,255,65,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,65,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .terminal-window {
+    width:100%; max-width:760px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius:6px;
+    box-shadow:
+      0 0 0 1px rgba(0,255,65,0.05),
+      0 0 60px rgba(0,255,65,0.04),
+      0 20px 60px rgba(0,0,0,0.8);
+    position:relative;
+    z-index:1;
+  }
+
+  .terminal-bar {
+    background: #0f170f;
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display:flex; align-items:center; gap:8px;
+    border-radius:6px 6px 0 0;
+  }
+
+  .dot { width:11px; height:11px; border-radius:50%; }
+  .dot.r { background:#ff5f57; }
+  .dot.y { background:#febc2e; }
+  .dot.g { background:#28c840; }
+
+  .terminal-title {
+    margin-left:8px;
+    color: var(--muted);
+    font-size:11px;
+    letter-spacing:1px;
+  }
+
+  .terminal-body {
+    padding: 28px 32px 32px;
+  }
+
+  .prompt { color: var(--green); }
+  .prompt-path { color: var(--cyan); }
+  .prompt-sym { color: var(--yellow); }
+
+  .cmd-line {
+    display:flex; align-items:center; gap:8px;
+    margin-bottom:20px;
+  }
+
+  .typed-name {
+    font-size: clamp(22px, 4vw, 36px);
+    font-weight:700;
+    color: var(--green3);
+    letter-spacing:2px;
+    display:inline-block;
+    border-right: 2px solid var(--green);
+    padding-right:4px;
+    animation: blink 1s step-end infinite;
+    white-space: nowrap;
+    overflow: hidden;
+    width: 0;
+    animation: typing 1.5s steps(14, end) 0.5s forwards, blink 1s step-end 2s infinite;
+  }
+
+  @keyframes typing {
+    from { width:0; }
+    to   { width: 100%; }
+  }
+
+  @keyframes blink {
+    50% { border-color: transparent; }
+  }
+
+  .hero-role {
+    color: var(--muted);
+    font-size:12px;
+    letter-spacing:2px;
+    margin-bottom:24px;
+    opacity:0;
+    animation: fadeUp 0.6s ease 2s forwards;
+  }
+
+  .hero-desc {
+    color: var(--text);
+    font-size:13px;
+    line-height:1.8;
+    border-left: 2px solid var(--dim);
+    padding-left:16px;
+    margin-bottom:28px;
+    opacity:0;
+    animation: fadeUp 0.6s ease 2.3s forwards;
+  }
+
+  .hero-desc strong { color: var(--green); }
+
+  .hero-links {
+    display:flex; flex-wrap:wrap; gap:12px;
+    opacity:0;
+    animation: fadeUp 0.6s ease 2.6s forwards;
+  }
+
+  .btn {
+    display:inline-flex; align-items:center; gap:8px;
+    padding: 8px 18px;
+    border: 1px solid var(--green2);
+    color: var(--green);
+    text-decoration:none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    transition: all 0.2s;
+    background: transparent;
+  }
+
+  .btn:hover {
+    background: rgba(0,255,65,0.08);
+    box-shadow: 0 0 16px rgba(0,255,65,0.15);
+    color: var(--green3);
+  }
+
+  .btn-muted {
+    border-color: var(--dim);
+    color: var(--muted);
+  }
+
+  .btn-muted:hover {
+    border-color: var(--muted);
+    color: var(--text);
+    box-shadow: none;
+  }
+
+@keyframes fadeUp {
+    from { opacity:0; transform:translateY(10px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  /* ── SECTIONS ── */
+  section {
+    max-width:900px;
+    margin:0 auto;
+    padding: 80px 32px;
+  }
+
+  .section-header {
+    display:flex; align-items:center; gap:16px;
+    margin-bottom:40px;
+  }
+
+  .section-num {
+    color: var(--green);
+    font-size:11px;
+    letter-spacing:2px;
+  }
+
+  .section-title {
+    font-size:18px;
+    font-weight:700;
+    color: var(--text);
+    letter-spacing:3px;
+    text-transform:uppercase;
+  }
+
+  .section-line {
+    flex:1;
+    height:1px;
+    background: var(--border);
+  }
+
+  /* ── ABOUT ── */
+  .about-grid {
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap:24px;
+  }
+
+  @media(max-width:600px){
+    .about-grid { grid-template-columns:1fr; }
+  }
+
+  .info-block {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding:20px;
+  }
+
+  .info-label {
+    color: var(--muted);
+    font-size:10px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    margin-bottom:6px;
+  }
+
+  .info-value {
+    color: var(--text);
+    font-size:13px;
+  }
+
+  .info-value a {
+    color: var(--cyan);
+    text-decoration:none;
+  }
+
+  .info-value a:hover { color: var(--green); }
+
+  /* ── PROJECTS ── */
+  .projects-list { display:flex; flex-direction:column; gap:20px; }
+
+  .project-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding:24px;
+    position:relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .project-card:hover {
+    border-color: var(--green2);
+    box-shadow: 0 0 20px rgba(0,255,65,0.06);
+  }
+
+  .project-card::before {
+    content:'';
+    position:absolute;
+    top:0; left:0;
+    width:3px; height:100%;
+    background: var(--green);
+    opacity:0;
+    transition: opacity 0.2s;
+  }
+
+  .project-card:hover::before { opacity:1; }
+
+  .project-top {
+    display:flex; align-items:flex-start;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:12px;
+    flex-wrap:wrap;
+  }
+
+  .project-name {
+    font-size:15px;
+    font-weight:700;
+    color: var(--green3);
+    letter-spacing:1px;
+  }
+
+  .project-date {
+    color: var(--muted);
+    font-size:11px;
+    white-space:nowrap;
+  }
+
+  .project-desc {color: var(--text);
+    font-size:12px;
+    line-height:1.7;
+    margin-bottom:16px;
+  }
+
+  .project-tags {
+    display:flex; flex-wrap:wrap; gap:8px;
+    margin-bottom:16px;
+  }
+
+  .tag {
+    background: var(--dim);
+    color: var(--green2);
+    font-size:10px;
+    padding:3px 10px;
+    letter-spacing:1px;
+    border: 1px solid rgba(0,255,65,0.1);
+  }
+
+  .project-link {
+    color: var(--cyan);
+    text-decoration:none;
+    font-size:11px;
+    letter-spacing:1px;
+    display:inline-flex; align-items:center; gap:6px;
+    transition: color 0.2s;
+  }
+
+  .project-link:hover { color: var(--green); }
+
+  /* ── SKILLS ── */
+  .skills-grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap:16px;
+  }
+
+  .skill-group {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding:20px;
+  }
+
+  .skill-group-label {
+    color: var(--green);
+    font-size:10px;
+    letter-spacing:3px;
+    text-transform:uppercase;
+    margin-bottom:12px;
+    padding-bottom:8px;
+    border-bottom:1px solid var(--border);
+  }
+
+  .skill-items {
+    display:flex; flex-wrap:wrap; gap:8px;
+  }
+
+  .skill-item {
+    color: var(--text);
+    font-size:11px;
+    padding:4px 10px;
+    border: 1px solid var(--dim);
+    background: rgba(0,255,65,0.02);
+  }
+
+  /* ── CERTIFICATIONS ── */
+  .certs-list { display:flex; flex-direction:column; gap:12px; }
+
+  .cert-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding:18px 20px;
+    display:flex; align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    flex-wrap:wrap;
+    transition: border-color 0.2s;
+  }
+
+  .cert-card:hover { border-color: var(--dim); }
+
+  .cert-name {
+    color: var(--text);
+    font-size:13px;
+    font-weight:500;
+  }
+
+  .cert-issuer {
+    color: var(--muted);
+    font-size:11px;
+    margin-top:3px;
+  }
+
+  .cert-date {
+    color: var(--green2);
+    font-size:11px;
+    white-space:nowrap;
+  }
+
+  /* ── CONTACT ── */
+  .contact-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    padding:32px;
+    text-align:center;
+  }
+
+  .contact-box p {
+    color: var(--muted);
+    margin-bottom:24px;
+    font-size:12px;
+    line-height:1.8;
+  }
+
+  .contact-links {
+    display:flex; flex-wrap:wrap; gap:12px;
+    justify-content:center;
+  }
+
+  /* ── STATUS BAR ── */
+  .statusbar {
+    position:fixed; bottom:0; left:0; right:0;
+    background: var(--green);
+    color: #000;
+    font-size:10px;
+    letter-spacing:1.5px;
+    padding:4px 16px;
+    display:flex; gap:24px;
+    z-index:100;
+  }
+
+  .statusbar span { opacity:0.7; }
+  .statusbar strong { opacity:1; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align:center;
+    padding:40px 32px 60px;
+    color: var(--muted);
+    font-size:11px;
+    border-top:1px solid var(--border);
+  }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width:4px; }
+  ::-webkit-scrollbar-track { background:var(--bg); }
+  ::-webkit-scrollbar-thumb { background:var(--dim); border-radius:2px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--green2); }
+
+  /* Matrix rain canvas */
+  #matrix {
+    position:fixed; top:0; left:0;
+    width:100%; height:100%;
+    opacity:0.025;
+    pointer-events:none;
+    z-index:0;
+  }
+</style>
+</head>
+<body>
+
+<div class="noise"></div>
+<canvas id="matrix"></canvas>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo"><span>~/</span>ammar-abadou</div>
+  <ul>
+    <li><a href="#about">about</a></li>
+    <li><a href="#projects">projects</a></li>
+    <li><a href="#skills">skills</a></li>
+    <li><a href="#certs">certs</a></li>
+    <li><a href="#contact">contact</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div id="hero">
+  <div class="hero-grid"></div>
+  <div class="terminal-window">
+    <div class="terminal-bar">
+      <div class="dot r"></div>
+      <div class="dot y"></div>
+      <div class="dot g"></div>
+      <span class="terminal-title">ammar@portfolio:~$</span>
+    </div>
+    <div class="terminal-body">
+      <div class="cmd-line">
+        <span class="prompt"><span class="prompt-path">ammar@portfolio</span><span class="prompt-sym">:~$</span>
+        </span>
+        <span style="color:var(--muted)">whoami</span>
+      </div>
+      <div style="overflow:hidden; margin-bottom:20px;">
+        <div class="typed-name">AMMAR ABADOU</div>
+      </div>
+      <div class="hero-role">// Security-focused Engineering Student · Year 4 of 5</div>
+      <div class="hero-desc">
+        I build <strong>real tools</strong> — from an AI desktop assistant with persistent memory
+        to a network scanner that generates automated security reports.<br>
+        I don't just study cybersecurity. <strong>I apply it.</strong>
+      </div>
+      <div class="hero-links">
+        <a class="btn" href="#projects">./projects</a>
+        <a class="btn" href="https://bit.ly/ammar-abadou-cv" target="_blank">download_cv.pdf</a>
+        <a class="btn btn-muted" href="https://github.com/amarabadou" target="_blank">github</a>
+        <a class="btn btn-muted" href="https://www.linkedin.com/in/ammar-abadou-062825411" target="_blank">linkedin</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ABOUT -->
+<section id="about">
+  <div class="section-header">
+    <span class="section-num">01.</span>
+    <span class="section-title">About</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="about-grid">
+    <div class="info-block">
+      <div class="info-label">Status</div>
+      <div class="info-value" style="color:var(--green)">● Seeking Internship — Summer 2026</div>
+    </div>
+    <div class="info-block">
+      <div class="info-label">Location</div>
+      <div class="info-value">Bordj Bou Arreridj, Algeria</div>
+    </div>
+    <div class="info-block">
+      <div class="info-label">Education</div>
+      <div class="info-value">State Engineer Degree — Information Security<br>
+        <span style="color:var(--muted)">Mohamed El Bachir Ibrahimi University</span>
+      </div>
+    </div>
+    <div class="info-block">
+      <div class="info-label">Contact</div>
+      <div class="info-value">
+        <a href="mailto:Ammar.Abadou@proton.me">Ammar.Abadou@proton.me</a><br>
+        <span style="color:var(--muted)">+213 776 689 066</span>
+      </div>
+    </div>
+    <div class="info-block">
+      <div class="info-label">Interests</div>
+      <div class="info-value" style="color:var(--muted)">Network Security · Penetration Testing · AI Integration · Software Development</div>
+    </div>
+    <div class="info-block">
+      <div class="info-label">Languages</div>
+      <div class="info-value">Arabic <span style="color:var(--muted)">(Native)</span><br>
+        English <span style="color:var(--muted)">B2 — British Council Certified</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="section-header">
+    <span class="section-num">02.</span>
+    <span class="section-title">Projects</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="projects-list">
+
+    <div class="project-card">
+      <div class="project-top">
+        <span class="project-name">▶ KITO — AI Desktop Assistant</span>
+        <span class="project-date">Nov 2025 – Mar 2026</span>
+      </div>
+      <div class="project-desc">
+        Desktop AI assistant with persistent memory and natural language interaction.
+        Features role-based access control, real-time text-to-speech, and contextual conversation recall across sessions.
+      </div>
+      <div class="project-tags">
+        <span class="tag">Python</span>
+        <span class="tag">SQLite</span>
+        <span class="tag">LLaMA3</span>
+        <span class="tag">AI Integration</span>
+        <span class="tag">TTS</span>
+      </div>
+      <a class="project-link" href="https://github.com/amarabadou/KITO_AI" target="_blank">
+        ↗ github.com/amarabadou/KITO_AI
+      </a>
+    </div>
+
+    <div class="project-card">
+      <div class="project-top">
+        <span class="project-name">▶ Network Scanner — Security Discovery Tool</span>
+        <span class="project-date">Apr 2026 – May 2026</span>
+      </div><div class="project-desc">
+        Python-based cybersecurity tool to discover devices on a local network, identify open ports,
+        detect running services, and generate automated security-focused PDF reports.
+      </div>
+      <div class="project-tags">
+        <span class="tag">Python</span>
+        <span class="tag">Nmap</span>
+        <span class="tag">CustomTkinter</span>
+        <span class="tag">Network Security</span>
+        <span class="tag">PDF Reports</span>
+      </div>
+      <a class="project-link" href="https://github.com/amarabadou/NETWORK_SCANNER" target="_blank">
+        ↗ github.com/amarabadou/NETWORK_SCANNER
+      </a>
+    </div>
+
+    <div class="project-card">
+      <div class="project-top">
+        <span class="project-name">▶ Student & Teacher Management System</span>
+        <span class="project-date">Jul 2025 – Sep 2025</span>
+      </div>
+      <div class="project-desc">
+        Scheduling system that reduced manual administrative time by ~60%.
+        Optimizes student and teacher workflow with efficient data management.
+      </div>
+      <div class="project-tags">
+        <span class="tag">Python</span>
+        <span class="tag">MySQL</span>
+        <span class="tag">phpMyAdmin</span>
+        <span class="tag">Scheduling</span>
+      </div>
+      <a class="project-link" href="https://github.com/amarabadou/students_teachers_management-" target="_blank">
+        ↗ github.com/amarabadou/students_teachers_management-
+      </a>
+    </div>
+
+  </div>
+</section>
+
+<!-- SKILLS -->
+<section id="skills">
+  <div class="section-header">
+    <span class="section-num">03.</span>
+    <span class="section-title">Skills</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="skills-grid">
+    <div class="skill-group">
+      <div class="skill-group-label">Core</div>
+      <div class="skill-items">
+        <span class="skill-item">Python</span>
+        <span class="skill-item">C</span>
+        <span class="skill-item">SQL</span>
+      </div>
+    </div>
+    <div class="skill-group">
+      <div class="skill-group-label">Security</div>
+      <div class="skill-items">
+        <span class="skill-item">Kali Linux</span>
+        <span class="skill-item">Nmap</span>
+        <span class="skill-item">Burp Suite</span>
+        <span class="skill-item">Wireshark</span>
+      </div>
+    </div>
+    <div class="skill-group">
+      <div class="skill-group-label">AI / ML</div>
+      <div class="skill-items">
+        <span class="skill-item">LLaMA3</span>
+        <span class="skill-item">Ollama</span>
+      </div>
+    </div>
+    <div class="skill-group">
+      <div class="skill-group-label">Databases</div>
+      <div class="skill-items">
+        <span class="skill-item">MySQL</span>
+        <span class="skill-item">SQLite</span>
+        <span class="skill-item">phpMyAdmin</span>
+      </div>
+    </div>
+    <div class="skill-group">
+      <div class="skill-group-label">Web</div>
+      <div class="skill-items">
+        <span class="skill-item">HTML5</span>
+        <span class="skill-item">CSS3</span>
+      </div>
+    </div>
+    <div class="skill-group">
+      <div class="skill-group-label">Tools & OS</div>
+      <div class="skill-items">
+        <span class="skill-item">Git</span>
+        <span class="skill-item">GitHub</span>
+        <span class="skill-item">Ubuntu</span>
+        <span class="skill-item">Windows 11</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CERTIFICATIONS -->
+<section id="certs">
+  <div class="section-header">
+    <span class="section-num">04.</span>
+    <span class="section-title">Certifications</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="certs-list">
+    <div class="cert-card">
+      <div>
+        <div class="cert-name">Introduction to Cybersecurity</div>
+        <div class="cert-issuer">Cisco Networking Academy</div>
+      </div>
+      <div class="cert-date">May 2026</div>
+    </div>
+    <div class="cert-card">
+      <div>
+        <div class="cert-name">EnglishScore Core Skills — CEFR B2</div><div class="cert-issuer">British Council · Score: 433 · <a href="https://englishscore.com/verify" target="_blank" style="color:var(--cyan);text-decoration:none;">Verify ↗</a></div>
+      </div>
+      <div class="cert-date">Mar 2026</div>
+    </div>
+    <div class="cert-card">
+      <div>
+        <div class="cert-name">Cyber Security Operations</div>
+        <div class="cert-issuer">ICT-Towers Training Center · No: CSO9220985</div>
+      </div>
+      <div class="cert-date">Sep 2022</div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact">
+  <div class="section-header">
+    <span class="section-num">05.</span>
+    <span class="section-title">Contact</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="contact-box">
+    <p>
+      Currently seeking an internship for Summer 2026.<br>
+      Open to on-site or hybrid positions in Algeria.
+    </p>
+    <div class="contact-links">
+      <a class="btn" href="mailto:Ammar.Abadou@proton.me">send_email</a>
+      <a class="btn" href="https://bit.ly/ammar-abadou-cv" target="_blank">download_cv.pdf</a>
+      <a class="btn btn-muted" href="https://github.com/amarabadou" target="_blank">github</a>
+      <a class="btn btn-muted" href="https://www.linkedin.com/in/ammar-abadou-062825411" target="_blank">linkedin</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <span style="color:var(--green)">ammar@portfolio</span><span style="color:var(--muted)">:~$</span>
+  &nbsp;built with HTML · CSS · JS &nbsp;·&nbsp; © 2026 Ammar Abadou
+</footer>
+
+<!-- Status bar -->
+<div class="statusbar">
+  <strong>AMMAR ABADOU</strong>
+  <span>|</span>
+  <span>Security Engineer Student</span>
+  <span>|</span>
+  <span>Open to Internship</span>
+  <span>|</span>
+  <span>Algeria</span>
+</div>
+
+<script>
+// Matrix rain
+const canvas = document.getElementById('matrix');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ';
+const fontSize = 12;
+let cols = Math.floor(canvas.width / fontSize);
+let drops = Array(cols).fill(1);
+
+function draw() {
+  ctx.fillStyle = 'rgba(10,14,10,0.05)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#00ff41';
+  ctx.font = fontSize + 'px JetBrains Mono';
+  for (let i = 0; i < drops.length; i++) {
+    const text = chars[Math.floor(Math.random() * chars.length)];
+    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+    if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+    drops[i]++;
+  }
+}
+
+setInterval(draw, 55);
+
+// Smooth scroll for nav links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const el = document.querySelector(a.getAttribute('href'));
+    if (el) el.scrollIntoView({ behavior:'smooth' });
+  });
+});
+</script>
+</body>
+</html>
